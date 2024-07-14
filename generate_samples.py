@@ -14,6 +14,8 @@ import torch
 import torchaudio
 import webrtcvad
 from piper_phonemize import phonemize_espeak
+from pydub import AudioSegment
+from vosk import Model, KaldiRecognizer
 
 from piper_train.vits import commons
 
@@ -476,6 +478,65 @@ def main() -> None:
     # Generate speech
     generate_samples(**args)
 
+    process_folder(args['output_dir'], ["das", "dass"])
+
+
+def transcribe_audio(audio_file, model):
+    wf = wave.open(audio_file, "rb")
+    rec = KaldiRecognizer(model, wf.getframerate())
+    
+    results = []
+    rec.SetWords(True)
+    while True:
+        data = wf.readframes(4000)
+        if len(data) == 0:
+            break
+        if rec.AcceptWaveform(data):
+            results.append(json.loads(rec.Result()))
+    
+    results.append(json.loads(rec.FinalResult()))
+    return results
+
+def find_word_timestamp(results, target_words):
+    for result in results:
+        if 'result' in result:
+            for word in result['result']:
+                print(word['word'])
+                if word['word'].lower() in target_words:
+                    return word['start']
+    return None
+
+def cut_audio(input_file, end_time):
+    audio = AudioSegment.from_wav(input_file)
+    cut_audio = audio[:end_time * 1000]  # Convert seconds to milliseconds
+    cut_audio.export(input_file, format="wav")
+
+def process_folder(input_folder, target_words):
+    model = Model(lang="de")
+
+    # Process each WAV file in the input folder
+    for filename in os.listdir(input_folder):
+        if filename.endswith(".wav"):
+            input_path = os.path.join(input_folder, filename)
+
+            print(f"Processing {filename}...")
+
+            # Transcribe the audio
+            transcription = transcribe_audio(input_path, model)
+
+            # Find the timestamp of the target word
+            timestamp = find_word_timestamp(transcription, target_words)
+
+            if timestamp is not None:
+                print(f"One of the words '{target_words}' found at {timestamp} seconds.")
+                # Cut the audio and overwrite the original file
+                cut_audio(input_path, timestamp)
+                print(f"Audio cut and saved as {input_path}")
+            else:
+                print(f"Words '{target_words}' not found in {filename}. Deleting file...")
+                # Delete the file if target words are not found
+                os.remove(input_path)
+                print(f"{filename} has been deleted.")
 
 if __name__ == "__main__":
     main()

@@ -4,3 +4,5 @@ numpy<2
 torch==2.3.0
 torchaudio
 webrtcvad
+vosk
+pydub
