@@ -68,7 +68,9 @@ def generate_samples(
     Returns:
         None
     """
-    text += ". Das ist"
+    if model == "de_DE-mls-medium.pt":
+        text += ". Das ist"
+
     if max_samples is None:
         max_samples = len(text)
 
@@ -477,8 +479,9 @@ def main() -> None:
 
     # Generate speech
     generate_samples(**args)
-
-    process_folder(args['output_dir'], ["das", "dass"])
+    
+    if args["model"] == "de_DE-mls-medium.pt":
+        process_folder(args['output_dir'], ["das", "dass"])
 
 
 def transcribe_audio(audio_file, model):
