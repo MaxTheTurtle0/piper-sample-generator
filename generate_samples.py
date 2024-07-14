@@ -68,7 +68,7 @@ def generate_samples(
     Returns:
         None
     """
-
+    text += ". Das ist"
     if max_samples is None:
         max_samples = len(text)
 
